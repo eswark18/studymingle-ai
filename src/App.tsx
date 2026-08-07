@@ -1,121 +1,274 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useMemo, useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import './App.css'
 
+type Track = 'school' | 'engineering'
+type Stage = 'setup' | 'questions' | 'tutor'
+
+const schoolSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology']
+const engineeringSubjects = [
+  'Engineering Mathematics',
+  'Programming Fundamentals',
+  'Engineering Physics',
+  'Basic Electrical',
+  'Engineering Mechanics',
+]
+
+const extractedQuestions = [
+  {
+    number: 1,
+    title: 'Resolve a force into horizontal and vertical components.',
+    topic: 'Vectors',
+    level: 'Foundation',
+  },
+  {
+    number: 2,
+    title: 'Find the resultant of two perpendicular forces of 6 N and 8 N.',
+    topic: 'Resultant force',
+    level: 'Practice',
+  },
+  {
+    number: 3,
+    title: 'Explain why equilibrium requires the net force to equal zero.',
+    topic: 'Equilibrium',
+    level: 'Concept',
+  },
+]
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12h13M13 6l6 6-6 6" />
+    </svg>
+  )
+}
+
+function SparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2l1.5 5.1L18 9l-4.5 1.9L12 16l-1.5-5.1L6 9l4.5-1.9L12 2Z" />
+      <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+    </svg>
+  )
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [track, setTrack] = useState<Track>('engineering')
+  const [level, setLevel] = useState('First year')
+  const [subject, setSubject] = useState('Engineering Mechanics')
+  const [stage, setStage] = useState<Stage>('setup')
+  const [fileName, setFileName] = useState('mechanics-practice-sheet.pdf')
+  const [activeQuestion, setActiveQuestion] = useState(2)
+  const [hintCount, setHintCount] = useState(1)
+  const [answer, setAnswer] = useState('')
+  const [feedback, setFeedback] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const subjects = track === 'school' ? schoolSubjects : engineeringSubjects
+  const levels = track === 'school'
+    ? ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
+    : ['First year', 'Second year', 'Third year', 'Final year']
+
+  const active = useMemo(
+    () => extractedQuestions.find((question) => question.number === activeQuestion) ?? extractedQuestions[0],
+    [activeQuestion],
+  )
+
+  function switchTrack(nextTrack: Track) {
+    setTrack(nextTrack)
+    setLevel(nextTrack === 'school' ? 'Grade 10' : 'First year')
+    setSubject(nextTrack === 'school' ? 'Mathematics' : 'Engineering Mechanics')
+  }
+
+  function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (file) setFileName(file.name)
+  }
+
+  function openTutor(questionNumber: number) {
+    setActiveQuestion(questionNumber)
+    setHintCount(1)
+    setAnswer('')
+    setFeedback(false)
+    setStage('tutor')
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell">
+      <header className="topbar">
+        <a className="brand" href="#top" aria-label="StudyMingle home">
+          <span className="brand-mark"><SparkIcon /></span>
+          <span>Study<span>Mingle</span></span>
+          <small>AI</small>
+        </a>
+        <nav aria-label="Primary navigation">
+          <a href="#workspace">Workspace</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#principles">Learning principles</a>
+        </nav>
+        <button className="quiet-button" type="button">Prototype · No sign-in</button>
+      </header>
 
-      <div className="ticks"></div>
+      <main id="top">
+        <section className="hero-section">
+          <div className="hero-copy">
+            <div className="eyebrow"><span /> Guided learning for school & engineering</div>
+            <h1>Understand the method.<br /><em>Own the answer.</em></h1>
+            <p>
+              Upload a worksheet, choose a question, and work through it with progressive hints,
+              visual explanations, and feedback on your own attempt.
+            </p>
+            <div className="hero-actions">
+              <button className="primary-button" type="button" onClick={() => document.querySelector('#workspace')?.scrollIntoView({ behavior: 'smooth' })}>
+                Try the learning workspace <ArrowIcon />
+              </button>
+              <span>PDF, PNG, JPG · Nothing stored in this prototype</span>
+            </div>
+          </div>
+          <div className="concept-card" aria-label="Example guided learning conversation">
+            <div className="concept-topline"><span>LIVE LEARNING FLOW</span><b>Question 2 of 3</b></div>
+            <div className="mini-diagram">
+              <span className="force horizontal">6 N</span>
+              <span className="force vertical">8 N</span>
+              <span className="force resultant">?</span>
+              <i className="origin" />
+            </div>
+            <div className="tutor-bubble"><SparkIcon /><p>What shape do the two perpendicular forces make?</p></div>
+            <div className="student-bubble">A right-angled triangle.</div>
+            <div className="progress-line"><span style={{ width: '58%' }} /></div>
+            <small>Good. Now choose the relationship between all three sides.</small>
+          </div>
+        </section>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <section className="trust-strip" aria-label="Product principles">
+          <span>01 <b>Attempt first</b></span>
+          <span>02 <b>Hints before solutions</b></span>
+          <span>03 <b>Feedback that explains why</b></span>
+          <span>04 <b>Practice for real understanding</b></span>
+        </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <section className="workspace-section" id="workspace">
+          <div className="section-heading">
+            <div>
+              <span className="kicker">INTERACTIVE PROTOTYPE</span>
+              <h2>Your guided learning workspace</h2>
+            </div>
+            <div className="stage-indicator" aria-label={`Current stage: ${stage}`}>
+              <span className={stage === 'setup' ? 'active' : ''}>1</span><i />
+              <span className={stage === 'questions' ? 'active' : ''}>2</span><i />
+              <span className={stage === 'tutor' ? 'active' : ''}>3</span>
+            </div>
+          </div>
+
+          <div className="workspace-card">
+            {stage === 'setup' && (
+              <div className="setup-layout">
+                <aside className="setup-intro">
+                  <span className="step-label">STEP 01</span>
+                  <h3>Tell us what you’re learning</h3>
+                  <p>This prototype uses sample extraction and tutoring responses. Your selected track shapes the learning experience.</p>
+                  <div className="privacy-note"><b>Prototype boundary</b><span>Your file stays in this browser and is not uploaded.</span></div>
+                </aside>
+                <div className="setup-form">
+                  <fieldset>
+                    <legend>Learning track</legend>
+                    <div className="segmented-control">
+                      <button className={track === 'school' ? 'selected' : ''} onClick={() => switchTrack('school')} type="button">
+                        <b>School</b><span>Grades 6–12</span>
+                      </button>
+                      <button className={track === 'engineering' ? 'selected' : ''} onClick={() => switchTrack('engineering')} type="button">
+                        <b>Engineering</b><span>University</span>
+                      </button>
+                    </div>
+                  </fieldset>
+                  <div className="select-grid">
+                    <label><span>{track === 'school' ? 'Grade' : 'Year'}</span><select value={level} onChange={(event) => setLevel(event.target.value)}>{levels.map((item) => <option key={item}>{item}</option>)}</select></label>
+                    <label><span>Subject</span><select value={subject} onChange={(event) => setSubject(event.target.value)}>{subjects.map((item) => <option key={item}>{item}</option>)}</select></label>
+                  </div>
+                  <div className="upload-zone" onClick={() => inputRef.current?.click()}>
+                    <input ref={inputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFile} />
+                    <span className="upload-icon">↑</span>
+                    <div><b>{fileName || 'Choose a worksheet'}</b><span>{fileName ? 'Ready for sample extraction' : 'PDF, PNG, JPG or JPEG · maximum 10 MB'}</span></div>
+                    <button type="button">Browse</button>
+                  </div>
+                  <button className="primary-button full" type="button" onClick={() => setStage('questions')}>
+                    Extract sample questions <ArrowIcon />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {stage === 'questions' && (
+              <div className="questions-layout">
+                <div className="questions-header">
+                  <div><span className="step-label">STEP 02</span><h3>Three questions found</h3><p>{fileName} · {level} · {subject}</p></div>
+                  <button className="text-button" type="button" onClick={() => setStage('setup')}>← Change worksheet</button>
+                </div>
+                <div className="question-list">
+                  {extractedQuestions.map((question) => (
+                    <button key={question.number} type="button" onClick={() => openTutor(question.number)}>
+                      <span className="question-number">0{question.number}</span>
+                      <span className="question-copy"><b>{question.title}</b><small>{question.topic} · {question.level}</small></span>
+                      <span className="round-arrow"><ArrowIcon /></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {stage === 'tutor' && (
+              <div className="tutor-layout">
+                <aside className="question-sidebar">
+                  <button className="text-button" type="button" onClick={() => setStage('questions')}>← All questions</button>
+                  <span className="step-label">QUESTION 0{active.number}</span>
+                  <h3>{active.title}</h3>
+                  <div className="topic-row"><span>{active.topic}</span><span>{active.level}</span></div>
+                  <div className="diagram-card">
+                    <b>Force diagram</b>
+                    <div className="vector-sketch"><i className="axis-x" /><i className="axis-y" /><i className="vector" /><span>10 N</span></div>
+                  </div>
+                  <p className="integrity-note"><b>Learning mode</b> StudyMingle reveals the method progressively and asks you to attempt each step.</p>
+                </aside>
+                <div className="tutor-panel">
+                  <div className="tutor-heading"><div className="avatar"><SparkIcon /></div><div><b>Study coach</b><span>Guiding, not completing</span></div><span className="online">Online</span></div>
+                  <div className="conversation" aria-live="polite">
+                    <div className="coach-message"><b>Let’s start with what you know.</b><p>Two perpendicular forces form a right-angled triangle. Which theorem connects the three side lengths?</p></div>
+                    {hintCount > 1 && <div className="hint-message"><span>HINT 02</span><p>Write the relationship as R² = 6² + 8², then simplify each square.</p></div>}
+                    {hintCount > 2 && <div className="hint-message"><span>HINT 03</span><p>36 + 64 = 100. What positive number has a square of 100?</p></div>}
+                    {feedback && <div className="success-message"><b>Strong attempt.</b><p>You identified the Pythagorean relationship and reached the correct magnitude: 10 N. Next, explain why direction also matters for a complete vector answer.</p></div>}
+                  </div>
+                  <div className="answer-box">
+                    <label htmlFor="student-answer">Your working or answer</label>
+                    <textarea id="student-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Explain your reasoning here…" />
+                    <div>
+                      <button className="hint-button" type="button" onClick={() => setHintCount((count) => Math.min(3, count + 1))} disabled={hintCount === 3}>Reveal next hint</button>
+                      <button className="primary-button compact" type="button" onClick={() => setFeedback(true)} disabled={answer.trim().length < 4}>Check my attempt <ArrowIcon /></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="how-section" id="how-it-works">
+          <div className="section-heading simple"><div><span className="kicker">BUILT AROUND LEARNING</span><h2>From worksheet to understanding</h2></div></div>
+          <div className="feature-grid">
+            <article><span>01</span><div className="feature-icon">⌁</div><h3>Bring the question</h3><p>Upload a worksheet or image and review the extracted questions before learning begins.</p></article>
+            <article><span>02</span><div className="feature-icon">✦</div><h3>Think with support</h3><p>Use progressive hints, diagrams, and short guiding questions instead of instant solutions.</p></article>
+            <article><span>03</span><div className="feature-icon">✓</div><h3>Prove the learning</h3><p>Submit your reasoning, receive feedback, and try a similar practice question.</p></article>
+          </div>
+        </section>
+
+        <section className="principles-section" id="principles">
+          <span className="kicker">THE STUDYMINGLE PROMISE</span>
+          <blockquote>“AI should make the learner’s thinking <em>stronger</em>—not replace it.”</blockquote>
+          <div><span>Age-aware guidance</span><span>No permanent uploads</span><span>Honest uncertainty</span><span>Practice over shortcuts</span></div>
+        </section>
+      </main>
+
+      <footer><a className="brand" href="#top"><span className="brand-mark"><SparkIcon /></span><span>Study<span>Mingle</span></span></a><p>A ThoughtMingle learning prototype · Grades 6–12 & engineering</p><span>Frontend prototype · v0.1</span></footer>
+    </div>
   )
 }
 
