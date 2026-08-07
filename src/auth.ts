@@ -20,6 +20,27 @@ export type Worksheet = {
   created_at: string
 }
 
+export type ExtractedQuestion = {
+  id: string
+  question_number: number
+  extracted_text: string
+  edited_text: string | null
+  confidence: number | null
+  page_number: number | null
+}
+
+export type OcrJob = {
+  id: string
+  worksheet_id: string
+  status: 'queued' | 'retrying' | 'processing' | 'completed' | 'failed'
+  extraction_method: string | null
+  error_message: string | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+  questions: ExtractedQuestion[]
+}
+
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 export class ApiError extends Error {
@@ -75,4 +96,23 @@ export function deleteWorksheet(id: string) {
 
 export function getWorksheetDownload(id: string) {
   return apiRequest<{ url: string; expires_in: number }>(`/worksheets/${id}/download`)
+}
+
+export function startQuestionExtraction(worksheetId: string) {
+  return apiRequest<OcrJob>(`/worksheets/${worksheetId}/extract`, { method: 'POST' })
+}
+
+export function getQuestionExtraction(jobId: string) {
+  return apiRequest<OcrJob>(`/ocr-jobs/${jobId}`)
+}
+
+export function retryQuestionExtraction(jobId: string) {
+  return apiRequest<OcrJob>(`/ocr-jobs/${jobId}/retry`, { method: 'POST' })
+}
+
+export function updateExtractedQuestion(questionId: string, editedText: string) {
+  return apiRequest<ExtractedQuestion>(`/questions/${questionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ text: editedText }),
+  })
 }

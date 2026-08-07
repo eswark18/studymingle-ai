@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.ocr import OcrJob
     from app.models.user import User
 
 
@@ -27,3 +28,6 @@ class Worksheet(TimestampMixin, Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     user: Mapped["User"] = relationship(back_populates="worksheets")
+    ocr_jobs: Mapped[list["OcrJob"]] = relationship(
+        back_populates="worksheet", cascade="all, delete-orphan"
+    )

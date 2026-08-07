@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     storage_bucket: str = "studymingle-worksheets"
     storage_auto_create_bucket: bool = True
     upload_max_bytes: int = 10 * 1024 * 1024
+    ocr_max_pages: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",
