@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     session_cookie_name: str = "studymingle_session"
     session_ttl_hours: int = 168
     turnstile_secret_key: str | None = None
+    storage_endpoint_url: str | None = None
+    storage_public_endpoint_url: str | None = None
+    storage_region: str = "auto"
+    storage_access_key_id: str = "studymingle"
+    storage_secret_access_key: str = "studymingle-local-secret"
+    storage_bucket: str = "studymingle-worksheets"
+    storage_auto_create_bucket: bool = True
+    upload_max_bytes: int = 10 * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file=".env",

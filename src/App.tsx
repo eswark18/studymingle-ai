@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
-import { ApiError, getCurrentUser, logout } from './auth'
-import type { AuthMode, AuthUser } from './auth'
+import { ApiError, deleteWorksheet, getCurrentUser, logout, uploadWorksheet } from './auth'
+import type { AuthMode, AuthUser, Worksheet } from './auth'
 import AccountModal from './components/AccountModal'
 import AuthModal from './components/AuthModal'
 
@@ -61,7 +61,11 @@ function App() {
   const [level, setLevel] = useState('First year')
   const [subject, setSubject] = useState('Engineering Mechanics')
   const [stage, setStage] = useState<Stage>('setup')
-  const [fileName, setFileName] = useState('mechanics-practice-sheet.pdf')
+  const [fileName, setFileName] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [worksheet, setWorksheet] = useState<Worksheet | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const [activeQuestion, setActiveQuestion] = useState(2)
   const [hintCount, setHintCount] = useState(1)
   const [answer, setAnswer] = useState('')
@@ -101,7 +105,42 @@ function App() {
 
   function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
-    if (file) setFileName(file.name)
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Choose a worksheet smaller than 10 MB.')
+      event.target.value = ''
+      return
+    }
+    setSelectedFile(file)
+    setFileName(file.name)
+    setUploadError('')
+  }
+
+  async function extractQuestions() {
+    if (!selectedFile) {
+      setUploadError('Choose a PDF, PNG, or JPEG worksheet first.')
+      return
+    }
+    setUploading(true)
+    setUploadError('')
+    try {
+      const uploaded = await uploadWorksheet(selectedFile)
+      setWorksheet(uploaded)
+      setStage('questions')
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Worksheet upload failed.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function removeCurrentWorksheet() {
+    if (!worksheet) return
+    await deleteWorksheet(worksheet.id)
+    setWorksheet(null)
+    setSelectedFile(null)
+    setFileName('')
+    setStage('setup')
   }
 
   function openTutor(questionNumber: number) {
@@ -256,8 +295,9 @@ function App() {
                     <div><b>{fileName || 'Choose a worksheet'}</b><span>{fileName ? 'Ready for sample extraction' : 'PDF, PNG, JPG or JPEG · maximum 10 MB'}</span></div>
                     <button type="button">Browse</button>
                   </div>
-                  <button className="primary-button full" type="button" onClick={() => setStage('questions')}>
-                    Extract sample questions <ArrowIcon />
+                  {uploadError && <p className="form-alert" role="alert">{uploadError}</p>}
+                  <button className="primary-button full" type="button" onClick={extractQuestions} disabled={uploading}>
+                    {uploading ? 'Uploading securely…' : 'Upload & extract sample questions'} {!uploading && <ArrowIcon />}
                   </button>
                 </div>
               </div>
@@ -267,7 +307,10 @@ function App() {
               <div className="questions-layout">
                 <div className="questions-header">
                   <div><span className="step-label">STEP 02</span><h3>Three questions found</h3><p>{fileName} · {level} · {subject}</p></div>
-                  <button className="text-button" type="button" onClick={() => setStage('setup')}>← Change worksheet</button>
+                  <div className="question-actions">
+                    <button className="text-button" type="button" onClick={() => setStage('setup')}>← Change worksheet</button>
+                    {worksheet && <button className="delete-link" type="button" onClick={removeCurrentWorksheet}>Delete stored copy</button>}
+                  </div>
                 </div>
                 <div className="question-list">
                   {extractedQuestions.map((question) => (

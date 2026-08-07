@@ -12,6 +12,8 @@ This phase introduces a portable Python backend without changing the production 
 - Registration, sign-in, sign-out, current-user, and account-deletion APIs
 - Argon2 password hashing and opaque server-side sessions
 - Optional Turnstile verification in development; required in production
+- Authenticated private worksheet uploads with ownership metadata
+- S3-compatible object storage using MinIO locally and Cloudflare R2 in production
 - Health and database-readiness endpoints
 - Test and lint configuration
 
@@ -28,6 +30,16 @@ OCR, AI tutoring, email verification, password recovery, and R2 uploads are inte
 Authentication uses an HTTP-only session cookie. Only a SHA-256 digest of the random session
 token is stored. Account deletion anonymizes personal profile fields and revokes active sessions.
 
+## Worksheet endpoints
+
+- `POST /api/v1/worksheets` accepts one PDF, PNG, or JPEG up to 10 MB
+- `GET /api/v1/worksheets` lists the authenticated user's active worksheets
+- `GET /api/v1/worksheets/{id}/download` creates a five-minute private download URL
+- `DELETE /api/v1/worksheets/{id}` removes both the object and its ownership record
+
+File extensions are never trusted. The API validates magic bytes, computes a SHA-256 digest,
+uses an opaque storage key, and never exposes another user's worksheet metadata.
+
 ## Local services
 
 | Service | Address | Purpose |
@@ -37,6 +49,8 @@ token is stored. Account deletion anonymizes personal profile fields and revokes
 | Health | `http://localhost:8000/health` | Process health |
 | Readiness | `http://localhost:8000/ready` | PostgreSQL connectivity |
 | PostgreSQL | `localhost:5432` | Local durable database |
+| MinIO API | `localhost:9000` | Local private object storage |
+| MinIO console | `localhost:9001` | Local storage administration |
 
 ## Commands
 
