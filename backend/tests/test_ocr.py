@@ -37,3 +37,23 @@ def test_parse_falls_back_to_sentence_questions() -> None:
         (1, "Which theorem connects the three side lengths?"),
         (2, "Explain your reasoning clearly."),
     ]
+
+
+def test_parse_ocr_paragraphs_without_number_markers() -> None:
+    text = """
+    STUDYMINGLE ENGINEERING MECHANICS
+
+    LEARNING MODE Show your method and use units.
+
+    Resolve a 10 N force into horizontal and vertical components.
+
+    Two perpendicular forces act at one point. Find their resultant.
+
+    Explain why equilibrium requires the vector sum to equal zero.
+    """
+
+    assert parse_questions(text) == [
+        (1, "Resolve a 10 N force into horizontal and vertical components."),
+        (2, "Two perpendicular forces act at one point. Find their resultant."),
+        (3, "Explain why equilibrium requires the vector sum to equal zero."),
+    ]

@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageFilter, ImageOps
 from pypdf import PdfReader
 
 from app.core.config import settings
@@ -21,7 +21,15 @@ def extract_image_text(path: Path) -> str:
     with Image.open(path) as image:
         image.verify()
     with Image.open(path) as image:
-        return pytesseract.image_to_string(image)
+        prepared = ImageOps.grayscale(image)
+        if prepared.width < 2000:
+            scale = 2000 / prepared.width
+            prepared = prepared.resize(
+                (2000, round(prepared.height * scale)),
+                Image.Resampling.LANCZOS,
+            )
+        prepared = ImageOps.autocontrast(prepared, cutoff=1).filter(ImageFilter.SHARPEN)
+        return pytesseract.image_to_string(prepared, config="--oem 3 --psm 4")
 
 
 def extract_pdf_text(path: Path) -> ExtractionResult:
@@ -66,6 +74,11 @@ def extract_document_text(path: Path, content_type: str) -> ExtractionResult:
 
 NUMBER_LINE = re.compile(r"^\s*0?(\d{1,2})[.)]?\s*$")
 INLINE_QUESTION = re.compile(r"^\s*0?(\d{1,2})[.)]\s+(.{15,})$")
+QUESTION_INTENT = re.compile(
+    r"\b(what|which|why|how|calculate|solve|find|determine|explain|describe|define|"
+    r"identify|compare|evaluate|simplify|prove|show|write|resolve)\b",
+    re.IGNORECASE,
+)
 
 
 def _clean_question(lines: list[str]) -> str:
@@ -74,6 +87,10 @@ def _clean_question(lines: list[str]) -> str:
         cleaned = " ".join(line.split())
         if cleaned.startswith("Original StudyMingle") or cleaned == "Hints before answers":
             break
+        if cleaned.upper().startswith(
+            ("LEARNING MODE", "LEARNNG MODE", "NAME DATE", "COURSE /SECTION")
+        ):
+            continue
         if not cleaned or (cleaned.isupper() and len(cleaned) < 60):
             continue
         useful.append(cleaned)
@@ -110,6 +127,16 @@ def parse_questions(text: str) -> list[tuple[int, str]]:
 
     if questions:
         return questions
+
+    paragraphs = re.split(r"\n\s*\n", text)
+    reviewable = []
+    for paragraph in paragraphs:
+        cleaned = _clean_question(paragraph.splitlines())
+        looks_like_question = QUESTION_INTENT.search(cleaned) or cleaned.endswith(("?", "."))
+        if len(cleaned) >= 35 and looks_like_question:
+            reviewable.append(cleaned[:4000])
+    if len(reviewable) >= 2:
+        return list(enumerate(reviewable[:50], start=1))
 
     sentences = re.split(r"(?<=[?.])\s+(?=[A-Z])", " ".join(text.split()))
     return [
