@@ -1,6 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
+import { ApiError, getCurrentUser, logout } from './auth'
+import type { AuthMode, AuthUser } from './auth'
+import AccountModal from './components/AccountModal'
+import AuthModal from './components/AuthModal'
 
 type Track = 'school' | 'engineering'
 type Stage = 'setup' | 'questions' | 'tutor'
@@ -62,7 +66,22 @@ function App() {
   const [hintCount, setHintCount] = useState(1)
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    getCurrentUser()
+      .then(setUser)
+      .catch((error) => {
+        if (!(error instanceof ApiError) || error.status !== 401) {
+          console.error('Unable to restore the StudyMingle session.', error)
+        }
+      })
+      .finally(() => setAuthLoading(false))
+  }, [])
 
   const subjects = track === 'school' ? schoolSubjects : engineeringSubjects
   const levels = track === 'school'
@@ -93,6 +112,16 @@ function App() {
     setStage('tutor')
   }
 
+  async function signOut() {
+    try {
+      await logout()
+    } finally {
+      setUser(null)
+      setAccountOpen(false)
+      setStage('setup')
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -106,7 +135,24 @@ function App() {
           <a href="#how-it-works">How it works</a>
           <a href="#principles">Learning principles</a>
         </nav>
-        <button className="quiet-button" type="button">Prototype · No sign-in</button>
+        <div className="account-actions">
+          {authLoading ? (
+            <span className="session-loading">Checking session…</span>
+          ) : user ? (
+            <>
+              <button className="user-button" type="button" onClick={() => setAccountOpen(true)}>
+                <span>{(user.display_name ?? user.email).slice(0, 1).toUpperCase()}</span>
+                {user.display_name ?? user.email}
+              </button>
+              <button className="quiet-button" type="button" onClick={signOut}>Sign out</button>
+            </>
+          ) : (
+            <>
+              <button className="quiet-button" type="button" onClick={() => setAuthMode('login')}>Sign in</button>
+              <button className="header-cta" type="button" onClick={() => setAuthMode('register')}>Create account</button>
+            </>
+          )}
+        </div>
       </header>
 
       <main id="top">
@@ -160,6 +206,25 @@ function App() {
             </div>
           </div>
 
+          {authLoading ? (
+            <div className="workspace-card auth-gate" aria-live="polite">
+              <div className="auth-gate-mark"><SparkIcon /></div>
+              <span className="kicker">RESTORING YOUR SESSION</span>
+              <h3>Preparing your learning workspace…</h3>
+            </div>
+          ) : !user ? (
+            <div className="workspace-card auth-gate">
+              <div className="auth-gate-mark"><SparkIcon /></div>
+              <span className="kicker">PRIVATE LEARNING WORKSPACE</span>
+              <h3>Sign in to begin your guided session</h3>
+              <p>Your account keeps worksheets, learning preferences, attempts, and future tutor history attached only to you.</p>
+              <div>
+                <button className="primary-button" type="button" onClick={() => setAuthMode('register')}>Create free account <ArrowIcon /></button>
+                <button className="secondary-button" type="button" onClick={() => setAuthMode('login')}>I already have an account</button>
+              </div>
+              <small>Secure HTTP-only sessions · Privacy controls · Delete your account anytime</small>
+            </div>
+          ) : (
           <div className="workspace-card">
             {stage === 'setup' && (
               <div className="setup-layout">
@@ -249,6 +314,7 @@ function App() {
               </div>
             )}
           </div>
+          )}
         </section>
 
         <section className="how-section" id="how-it-works">
@@ -266,6 +332,28 @@ function App() {
           <div><span>Age-aware guidance</span><span>No permanent uploads</span><span>Honest uncertainty</span><span>Practice over shortcuts</span></div>
         </section>
       </main>
+      {authMode && (
+        <AuthModal
+          initialMode={authMode}
+          onClose={() => setAuthMode(null)}
+          onAuthenticated={(authenticatedUser) => {
+            setUser(authenticatedUser)
+            setAuthMode(null)
+            document.querySelector('#workspace')?.scrollIntoView({ behavior: 'smooth' })
+          }}
+        />
+      )}
+      {accountOpen && user && (
+        <AccountModal
+          user={user}
+          onClose={() => setAccountOpen(false)}
+          onDeleted={() => {
+            setUser(null)
+            setAccountOpen(false)
+            setStage('setup')
+          }}
+        />
+      )}
 
       <footer><a className="brand" href="#top"><span className="brand-mark"><SparkIcon /></span><span>Study<span>Mingle</span></span></a><p>A ThoughtMingle learning prototype · Grades 6–12 & engineering</p><span>Frontend prototype · v0.1</span></footer>
     </div>
