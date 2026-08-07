@@ -13,6 +13,9 @@ services:
       STORAGE_SECRET_ACCESS_KEY: studymingle-local-secret
       STORAGE_BUCKET: studymingle-worksheets
       STORAGE_AUTO_CREATE_BUCKET: "true"
+      TUTOR_PROVIDER: ollama
+      TUTOR_MODEL: qwen3:4b
+      TUTOR_BASE_URL: http://ollama:11434
     ports:
       - "8000:8000"
     depends_on:
@@ -20,6 +23,14 @@ services:
         condition: service_healthy
       storage:
         condition: service_started
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:0.11.4
+    ports:
+      - "11434:11434"
+    volumes:
+      - studymingle_ollama:/root/.ollama
     restart: unless-stopped
 
   db:
@@ -55,3 +66,4 @@ services:
 volumes:
   studymingle_postgres:
   studymingle_storage:
+  studymingle_ollama:

@@ -8,11 +8,14 @@ import {
   getQuestionExtraction,
   logout,
   retryQuestionExtraction,
+  requestTutorHint,
   startQuestionExtraction,
+  startTutorSession,
+  submitTutorAttempt,
   updateExtractedQuestion,
   uploadWorksheet,
 } from './auth'
-import type { AuthMode, AuthUser, ExtractedQuestion, OcrJob, Worksheet } from './auth'
+import type { AuthMode, AuthUser, ExtractedQuestion, OcrJob, TutorSession, Worksheet } from './auth'
 import AccountModal from './components/AccountModal'
 import AuthModal from './components/AuthModal'
 
@@ -60,9 +63,10 @@ function App() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
-  const [hintCount, setHintCount] = useState(1)
   const [answer, setAnswer] = useState('')
-  const [feedback, setFeedback] = useState(false)
+  const [tutorSession, setTutorSession] = useState<TutorSession | null>(null)
+  const [tutorLoading, setTutorLoading] = useState(false)
+  const [tutorError, setTutorError] = useState('')
   const [user, setUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
@@ -191,12 +195,52 @@ function App() {
     }
   }
 
-  function openTutor(questionId: string) {
+  async function openTutor(questionId: string) {
     setActiveQuestion(questionId)
-    setHintCount(1)
     setAnswer('')
-    setFeedback(false)
+    setTutorSession(null)
+    setTutorError('')
     setStage('tutor')
+    setTutorLoading(true)
+    try {
+      const session = await startTutorSession(questionId, {
+        education_track: track,
+        grade_or_year: level,
+        subject,
+      })
+      setTutorSession(session)
+    } catch (error) {
+      setTutorError(error instanceof Error ? error.message : 'The study coach could not start.')
+    } finally {
+      setTutorLoading(false)
+    }
+  }
+
+  async function revealHint() {
+    if (!tutorSession || tutorLoading) return
+    setTutorLoading(true)
+    setTutorError('')
+    try {
+      setTutorSession(await requestTutorHint(tutorSession.id))
+    } catch (error) {
+      setTutorError(error instanceof Error ? error.message : 'The next hint could not be loaded.')
+    } finally {
+      setTutorLoading(false)
+    }
+  }
+
+  async function checkAttempt() {
+    if (!tutorSession || answer.trim().length < 3 || tutorLoading) return
+    setTutorLoading(true)
+    setTutorError('')
+    try {
+      setTutorSession(await submitTutorAttempt(tutorSession.id, answer))
+      setAnswer('')
+    } catch (error) {
+      setTutorError(error instanceof Error ? error.message : 'Your attempt could not be checked.')
+    } finally {
+      setTutorLoading(false)
+    }
   }
 
   async function signOut() {
@@ -407,17 +451,27 @@ function App() {
                 <div className="tutor-panel">
                   <div className="tutor-heading"><div className="avatar"><SparkIcon /></div><div><b>Study coach</b><span>Guiding, not completing</span></div><span className="online">Online</span></div>
                   <div className="conversation" aria-live="polite">
-                    <div className="coach-message"><b>Let’s start with what you know.</b><p>Two perpendicular forces form a right-angled triangle. Which theorem connects the three side lengths?</p></div>
-                    {hintCount > 1 && <div className="hint-message"><span>HINT 02</span><p>Write the relationship as R² = 6² + 8², then simplify each square.</p></div>}
-                    {hintCount > 2 && <div className="hint-message"><span>HINT 03</span><p>36 + 64 = 100. What positive number has a square of 100?</p></div>}
-                    {feedback && <div className="success-message"><b>Strong attempt.</b><p>You identified the Pythagorean relationship and reached the correct magnitude: 10 N. Next, explain why direction also matters for a complete vector answer.</p></div>}
+                    {tutorLoading && !tutorSession && <div className="coach-message"><b>Preparing your first step…</b><p>The local open-source tutor is reading the reviewed question.</p></div>}
+                    {tutorSession?.hints.map((hint) => (
+                      <div className={hint.sequence_number === 1 ? 'coach-message' : 'hint-message'} key={hint.id}>
+                        {hint.sequence_number === 1 ? <b>Let’s start with what you know.</b> : <span>HINT {String(hint.sequence_number).padStart(2, '0')}</span>}
+                        <p>{hint.hint_text}</p>
+                      </div>
+                    ))}
+                    {tutorSession?.attempts.map((attempt) => (
+                      <div className={attempt.is_correct ? 'success-message' : 'coach-message'} key={attempt.id}>
+                        <b>{attempt.is_correct ? 'Strong attempt.' : 'Keep working through it.'}</b>
+                        <p>{attempt.feedback_text}</p>
+                      </div>
+                    ))}
+                    {tutorError && <p className="form-alert" role="alert">{tutorError}</p>}
                   </div>
                   <div className="answer-box">
                     <label htmlFor="student-answer">Your working or answer</label>
                     <textarea id="student-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Explain your reasoning here…" />
                     <div>
-                      <button className="hint-button" type="button" onClick={() => setHintCount((count) => Math.min(3, count + 1))} disabled={hintCount === 3}>Reveal next hint</button>
-                      <button className="primary-button compact" type="button" onClick={() => setFeedback(true)} disabled={answer.trim().length < 4}>Check my attempt <ArrowIcon /></button>
+                      <button className="hint-button" type="button" onClick={revealHint} disabled={!tutorSession?.can_request_hint || tutorLoading}>{tutorLoading ? 'Coach is thinking…' : 'Reveal next hint'}</button>
+                      <button className="primary-button compact" type="button" onClick={checkAttempt} disabled={!tutorSession || tutorSession.status === 'completed' || answer.trim().length < 3 || tutorLoading}>Check my attempt <ArrowIcon /></button>
                     </div>
                   </div>
                 </div>

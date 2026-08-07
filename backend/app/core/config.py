@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     storage_auto_create_bucket: bool = True
     upload_max_bytes: int = 10 * 1024 * 1024
     ocr_max_pages: int = 20
+    tutor_provider: str = "ollama"
+    tutor_model: str = "qwen3:4b"
+    tutor_base_url: str = "http://localhost:11434"
+    tutor_timeout_seconds: float = 30.0
+    tutor_rate_limit_requests: int = 12
+    tutor_rate_limit_window_seconds: int = 60
+    tutor_max_hints: int = 3
 
     model_config = SettingsConfigDict(
         env_file=".env",

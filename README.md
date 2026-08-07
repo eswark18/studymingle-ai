@@ -2,21 +2,22 @@
 
 StudyMingle is a guided multimodal learning workspace for **Grades 6–12** and **engineering students**. It is designed to strengthen a learner’s reasoning through progressive hints, visual explanations, answer feedback, and practice—not simply generate finished homework.
 
-## Prototype scope
-
-The `feature/mvp-prototype` branch contains a frontend-only interactive prototype:
+## Current scope
 
 - School and engineering learning tracks
 - Grade/year and subject selection
-- PDF and image worksheet selection with local-only preview state
-- Mock question extraction
-- Guided tutoring flow with progressive hints
-- Student answer feedback
+- Account-owned PDF and image uploads with deletion controls
+- Native PDF extraction and Tesseract OCR
+- Reviewable extracted questions with immutable OCR source text
+- PostgreSQL-backed tutor sessions, attempts, and hints
+- Self-hosted open-source tutoring through Ollama
+- Structured, age-aware progressive guidance and attempt feedback
 - Educational force/vector diagram
 - Responsive and keyboard-accessible interface
 - Reduced-motion support
 
-No uploaded files leave the browser. The prototype has no accounts, database, permanent storage, payments, or AI API integration.
+Local development uses PostgreSQL, MinIO, and Ollama through Docker Compose. Model inference and
+all credentials stay server-side.
 
 ## Learning principles
 
@@ -31,6 +32,8 @@ No uploaded files leave the browser. The prototype has no accounts, database, pe
 ```bash
 npm install
 npm run dev
+docker compose up --build
+docker compose exec ollama ollama pull qwen3:4b
 ```
 
 ## Validate
@@ -55,6 +58,9 @@ npm run build
 - React
 - TypeScript
 - Vite
-- Cloudflare Pages (planned hosting)
+- FastAPI and PostgreSQL
+- S3-compatible private storage
+- Ollama with a configurable open-source model
+- Cloudflare Pages frontend
 
 StudyMingle is a ThoughtMingle learning prototype.

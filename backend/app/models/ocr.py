@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.tutor import TutorSession
     from app.models.worksheet import Worksheet
 
 
@@ -47,3 +48,6 @@ class ExtractedQuestion(TimestampMixin, Base):
     page_number: Mapped[int | None] = mapped_column(Integer)
 
     job: Mapped["OcrJob"] = relationship(back_populates="questions")
+    tutor_sessions: Mapped[list["TutorSession"]] = relationship(
+        back_populates="question", cascade="all, delete-orphan"
+    )

@@ -16,11 +16,14 @@ This phase introduces a portable Python backend without changing the production 
 - S3-compatible object storage using MinIO locally and Cloudflare R2 in production
 - Native PDF text extraction with Tesseract OCR fallback for scanned PDFs and images
 - Persistent OCR job state and editable, account-owned extracted questions
+- Persistent tutor sessions, attempts, and progressive hints
+- A server-side provider interface backed by self-hosted Ollama
+- Validated structured model responses, timeouts, and per-user request limits
 - Health and database-readiness endpoints
 - Test and lint configuration
 
-AI tutoring, email verification, password recovery, and production R2 wiring are intentionally
-deferred.
+Email verification, password recovery, production R2 wiring, and distributed rate limiting are
+intentionally deferred.
 
 ## Authentication endpoints
 
@@ -60,6 +63,24 @@ deliberately persisted so the executor can move to Cloudflare Queues or another 
 without changing the browser API. Until that replacement, a container restart can interrupt an
 in-flight job; the failed/stale-job recovery policy must be added before production scale-out.
 
+## Tutor endpoints
+
+- `POST /api/v1/questions/{id}/tutor-sessions` starts guidance for an owned question
+- `GET /api/v1/tutor-sessions/{id}` restores the learner's tutor history
+- `POST /api/v1/tutor-sessions/{id}/hints` requests one progressive hint
+- `POST /api/v1/tutor-sessions/{id}/attempts` checks and stores the learner's reasoning
+
+The tutor uses the reviewed question text while preserving `extracted_text` as immutable OCR
+evidence. The browser never calls a model directly. FastAPI sends age-, track-, and subject-aware
+prompts to a self-hosted Ollama API and validates every response against a Pydantic JSON schema
+before it is stored or returned. The teaching policy allows at most three progressively specific
+hints and avoids a completed answer before a meaningful learner attempt.
+
+`TutorProvider` is deliberately provider-neutral. The current implementation is open-source
+Ollama; a later vLLM or Hugging Face implementation can satisfy the same interface without changing
+the browser API or database model. The in-memory limiter protects this single API process; use a
+shared Redis-backed limiter before horizontally scaling the service.
+
 ## Local services
 
 | Service | Address | Purpose |
@@ -71,11 +92,13 @@ in-flight job; the failed/stale-job recovery policy must be added before product
 | PostgreSQL | `localhost:5432` | Local durable database |
 | MinIO API | `localhost:9000` | Local private object storage |
 | MinIO console | `localhost:9001` | Local storage administration |
+| Ollama | `localhost:11434` | Local open-source tutor inference |
 
 ## Commands
 
 ```bash
 docker compose up --build
+docker compose exec ollama ollama pull qwen3:4b
 curl http://localhost:8000/health
 curl http://localhost:8000/ready
 docker compose down
