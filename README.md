@@ -1,32 +1,60 @@
-# React + TypeScript + Vite
+# StudyMingle AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+StudyMingle is a guided multimodal learning workspace for **Grades 6–12** and **engineering students**. It is designed to strengthen a learner’s reasoning through progressive hints, visual explanations, answer feedback, and practice—not simply generate finished homework.
 
-Currently, two official plugins are available:
+## Prototype scope
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The `feature/mvp-prototype` branch contains a frontend-only interactive prototype:
 
-## React Compiler
+- School and engineering learning tracks
+- Grade/year and subject selection
+- PDF and image worksheet selection with local-only preview state
+- Mock question extraction
+- Guided tutoring flow with progressive hints
+- Student answer feedback
+- Educational force/vector diagram
+- Responsive and keyboard-accessible interface
+- Reduced-motion support
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+No uploaded files leave the browser. The prototype has no accounts, database, permanent storage, payments, or AI API integration.
 
-## Expanding the Oxlint configuration
+## Learning principles
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+1. Ask for an attempt before revealing a solution.
+2. Provide progressive hints rather than an immediate finished answer.
+3. Explain why an answer works or fails.
+4. Reinforce learning with a related practice question.
+5. Clearly communicate uncertainty and prototype limitations.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Run locally
+
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Validate
+
+```bash
+npm run lint
+npm run build
+```
+
+## Planned phases
+
+1. UX prototype
+2. Secure worksheet upload and OCR/question extraction
+3. Guided tutoring chat
+4. Answer checking and practice generation
+5. Educational diagram generation
+6. Privacy, safety, evaluations, and usage controls
+7. Public demo at `study.thoughtmingle.com`
+
+## Technology
+
+- React
+- TypeScript
+- Vite
+- Cloudflare Pages (planned hosting)
+
+StudyMingle is a ThoughtMingle learning prototype.
