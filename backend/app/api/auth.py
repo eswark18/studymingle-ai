@@ -7,8 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import CurrentSession, CurrentUser, DatabaseSession
 from app.core.config import settings
 from app.core.security import create_session_token, hash_password, verify_password
+from app.core.storage import delete_private_file
 from app.core.turnstile import verify_turnstile
-from app.models import Session, User
+from app.models import Session, User, Worksheet
 from app.schemas.auth import DeleteAccountRequest, LoginRequest, RegisterRequest, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -131,6 +132,16 @@ async def delete_account(
 ) -> None:
     if not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Password is incorrect.")
+    worksheets = await database.scalars(select(Worksheet).where(Worksheet.user_id == user.id))
+    for worksheet in worksheets:
+        try:
+            await delete_private_file(worksheet.storage_key)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Private files could not be deleted. Your account was not changed.",
+            ) from exc
+        await database.delete(worksheet)
     user.deleted_at = datetime.now(UTC)
     user.email = f"deleted-{user.id}@deleted.invalid"
     user.display_name = None
