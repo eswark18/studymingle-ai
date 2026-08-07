@@ -58,9 +58,8 @@ async def start_extraction(
     worksheet.status = "queued"
     database.add(job)
     await database.commit()
-    await database.refresh(job)
     background_tasks.add_task(process_ocr_job, job.id)
-    return job
+    return await owned_job(job.id, user, database)
 
 
 @router.get("/ocr-jobs/{job_id}", response_model=OcrJobResponse)
@@ -90,7 +89,7 @@ async def retry_extraction(
     job.completed_at = None
     await database.commit()
     background_tasks.add_task(process_ocr_job, job.id)
-    return job
+    return await owned_job(job.id, user, database)
 
 
 @router.patch("/questions/{question_id}", response_model=QuestionResponse)
