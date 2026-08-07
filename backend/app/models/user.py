@@ -9,6 +9,7 @@ from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.session import Session
+    from app.models.worksheet import Worksheet
 
 
 class User(TimestampMixin, Base):
@@ -24,5 +25,8 @@ class User(TimestampMixin, Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     sessions: Mapped[list["Session"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    worksheets: Mapped[list["Worksheet"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
