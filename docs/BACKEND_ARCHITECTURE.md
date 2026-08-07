@@ -14,10 +14,13 @@ This phase introduces a portable Python backend without changing the production 
 - Optional Turnstile verification in development; required in production
 - Authenticated private worksheet uploads with ownership metadata
 - S3-compatible object storage using MinIO locally and Cloudflare R2 in production
+- Native PDF text extraction with Tesseract OCR fallback for scanned PDFs and images
+- Persistent OCR job state and editable, account-owned extracted questions
 - Health and database-readiness endpoints
 - Test and lint configuration
 
-OCR, AI tutoring, email verification, password recovery, and R2 uploads are intentionally deferred.
+AI tutoring, email verification, password recovery, and production R2 wiring are intentionally
+deferred.
 
 ## Authentication endpoints
 
@@ -39,6 +42,23 @@ token is stored. Account deletion anonymizes personal profile fields and revokes
 
 File extensions are never trusted. The API validates magic bytes, computes a SHA-256 digest,
 uses an opaque storage key, and never exposes another user's worksheet metadata.
+
+## OCR endpoints
+
+- `POST /api/v1/worksheets/{id}/extract` queues extraction for an owned worksheet
+- `GET /api/v1/ocr-jobs/{id}` returns extraction status and reviewable questions
+- `POST /api/v1/ocr-jobs/{id}/retry` retries a failed extraction
+- `PATCH /api/v1/questions/{id}` saves the learner's corrected question text
+
+The extractor first reads embedded PDF text. PDFs without useful embedded text are rendered with
+Poppler and processed with Tesseract; PNG and JPEG files use Tesseract directly. PostgreSQL stores
+job state and question text, while the original private file remains in S3-compatible object
+storage. The configured page limit protects CPU and memory usage.
+
+FastAPI background tasks execute OCR in the current single-container milestone. The job boundary is
+deliberately persisted so the executor can move to Cloudflare Queues or another durable worker
+without changing the browser API. Until that replacement, a container restart can interrupt an
+in-flight job; the failed/stale-job recovery policy must be added before production scale-out.
 
 ## Local services
 

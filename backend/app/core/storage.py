@@ -56,6 +56,17 @@ async def delete_private_file(storage_key: str) -> None:
     )
 
 
+async def download_private_file(storage_key: str, file_object: BinaryIO) -> None:
+    client = storage_client()
+    await asyncio.to_thread(
+        client.download_fileobj,
+        settings.storage_bucket,
+        storage_key,
+        file_object,
+    )
+    file_object.seek(0)
+
+
 async def create_download_url(storage_key: str, filename: str) -> str:
     client = storage_client(settings.storage_public_endpoint_url)
     return client.generate_presigned_url(

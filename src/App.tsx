@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
-import { ApiError, deleteWorksheet, getCurrentUser, logout, uploadWorksheet } from './auth'
-import type { AuthMode, AuthUser, Worksheet } from './auth'
+import {
+  ApiError,
+  deleteWorksheet,
+  getCurrentUser,
+  getQuestionExtraction,
+  logout,
+  retryQuestionExtraction,
+  startQuestionExtraction,
+  updateExtractedQuestion,
+  uploadWorksheet,
+} from './auth'
+import type { AuthMode, AuthUser, ExtractedQuestion, OcrJob, Worksheet } from './auth'
 import AccountModal from './components/AccountModal'
 import AuthModal from './components/AuthModal'
 
 type Track = 'school' | 'engineering'
-type Stage = 'setup' | 'questions' | 'tutor'
+type Stage = 'setup' | 'processing' | 'questions' | 'tutor'
 
 const schoolSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology']
 const engineeringSubjects = [
@@ -16,27 +26,6 @@ const engineeringSubjects = [
   'Engineering Physics',
   'Basic Electrical',
   'Engineering Mechanics',
-]
-
-const extractedQuestions = [
-  {
-    number: 1,
-    title: 'Resolve a force into horizontal and vertical components.',
-    topic: 'Vectors',
-    level: 'Foundation',
-  },
-  {
-    number: 2,
-    title: 'Find the resultant of two perpendicular forces of 6 N and 8 N.',
-    topic: 'Resultant force',
-    level: 'Practice',
-  },
-  {
-    number: 3,
-    title: 'Explain why equilibrium requires the net force to equal zero.',
-    topic: 'Equilibrium',
-    level: 'Concept',
-  },
 ]
 
 function ArrowIcon() {
@@ -64,9 +53,13 @@ function App() {
   const [fileName, setFileName] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [worksheet, setWorksheet] = useState<Worksheet | null>(null)
+  const [ocrJob, setOcrJob] = useState<OcrJob | null>(null)
+  const [questions, setQuestions] = useState<ExtractedQuestion[]>([])
+  const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
+  const [savingQuestion, setSavingQuestion] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
-  const [activeQuestion, setActiveQuestion] = useState(2)
+  const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
   const [hintCount, setHintCount] = useState(1)
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState(false)
@@ -87,14 +80,38 @@ function App() {
       .finally(() => setAuthLoading(false))
   }, [])
 
+  useEffect(() => {
+    if (!ocrJob || !['queued', 'retrying', 'processing'].includes(ocrJob.status)) return
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        const latest = await getQuestionExtraction(ocrJob.id)
+        if (cancelled) return
+        setOcrJob(latest)
+        if (latest.status === 'completed') {
+          setQuestions(latest.questions)
+          setQuestionDrafts(Object.fromEntries(latest.questions.map((item) => [item.id, item.edited_text ?? item.extracted_text])))
+          setActiveQuestion(latest.questions[0]?.id ?? null)
+          setStage('questions')
+        }
+      } catch (error) {
+        if (!cancelled) setUploadError(error instanceof Error ? error.message : 'Question extraction failed.')
+      }
+    }, 1200)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [ocrJob])
+
   const subjects = track === 'school' ? schoolSubjects : engineeringSubjects
   const levels = track === 'school'
     ? ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
     : ['First year', 'Second year', 'Third year', 'Final year']
 
   const active = useMemo(
-    () => extractedQuestions.find((question) => question.number === activeQuestion) ?? extractedQuestions[0],
-    [activeQuestion],
+    () => questions.find((question) => question.id === activeQuestion) ?? questions[0],
+    [activeQuestion, questions],
   )
 
   function switchTrack(nextTrack: Track) {
@@ -126,7 +143,9 @@ function App() {
     try {
       const uploaded = await uploadWorksheet(selectedFile)
       setWorksheet(uploaded)
-      setStage('questions')
+      const job = await startQuestionExtraction(uploaded.id)
+      setOcrJob(job)
+      setStage('processing')
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Worksheet upload failed.')
     } finally {
@@ -138,13 +157,42 @@ function App() {
     if (!worksheet) return
     await deleteWorksheet(worksheet.id)
     setWorksheet(null)
+    setOcrJob(null)
+    setQuestions([])
+    setQuestionDrafts({})
     setSelectedFile(null)
     setFileName('')
     setStage('setup')
   }
 
-  function openTutor(questionNumber: number) {
-    setActiveQuestion(questionNumber)
+  async function retryExtraction() {
+    if (!ocrJob) return
+    setUploadError('')
+    try {
+      const retried = await retryQuestionExtraction(ocrJob.id)
+      setOcrJob(retried)
+      setStage('processing')
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Question extraction could not be retried.')
+    }
+  }
+
+  async function saveQuestion(question: ExtractedQuestion) {
+    const editedText = questionDrafts[question.id]?.trim()
+    if (!editedText || editedText.length < 3) return
+    setSavingQuestion(question.id)
+    try {
+      const updated = await updateExtractedQuestion(question.id, editedText)
+      setQuestions((items) => items.map((item) => item.id === updated.id ? updated : item))
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'The question could not be saved.')
+    } finally {
+      setSavingQuestion(null)
+    }
+  }
+
+  function openTutor(questionId: string) {
+    setActiveQuestion(questionId)
     setHintCount(1)
     setAnswer('')
     setFeedback(false)
@@ -207,7 +255,7 @@ function App() {
               <button className="primary-button" type="button" onClick={() => document.querySelector('#workspace')?.scrollIntoView({ behavior: 'smooth' })}>
                 Try the learning workspace <ArrowIcon />
               </button>
-              <span>PDF, PNG, JPG · Nothing stored in this prototype</span>
+              <span>PDF, PNG, JPG · Private storage with deletion controls</span>
             </div>
           </div>
           <div className="concept-card" aria-label="Example guided learning conversation">
@@ -240,7 +288,7 @@ function App() {
             </div>
             <div className="stage-indicator" aria-label={`Current stage: ${stage}`}>
               <span className={stage === 'setup' ? 'active' : ''}>1</span><i />
-              <span className={stage === 'questions' ? 'active' : ''}>2</span><i />
+              <span className={stage === 'processing' || stage === 'questions' ? 'active' : ''}>2</span><i />
               <span className={stage === 'tutor' ? 'active' : ''}>3</span>
             </div>
           </div>
@@ -270,8 +318,8 @@ function App() {
                 <aside className="setup-intro">
                   <span className="step-label">STEP 01</span>
                   <h3>Tell us what you’re learning</h3>
-                  <p>This prototype uses sample extraction and tutoring responses. Your selected track shapes the learning experience.</p>
-                  <div className="privacy-note"><b>Prototype boundary</b><span>Your file stays in this browser and is not uploaded.</span></div>
+                  <p>Your worksheet is uploaded privately and processed to find reviewable questions. Your selected track shapes the learning experience.</p>
+                  <div className="privacy-note"><b>Private by design</b><span>Only your account can access or delete the original worksheet and extracted questions.</span></div>
                 </aside>
                 <div className="setup-form">
                   <fieldset>
@@ -292,33 +340,52 @@ function App() {
                   <div className="upload-zone" onClick={() => inputRef.current?.click()}>
                     <input ref={inputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFile} />
                     <span className="upload-icon">↑</span>
-                    <div><b>{fileName || 'Choose a worksheet'}</b><span>{fileName ? 'Ready for sample extraction' : 'PDF, PNG, JPG or JPEG · maximum 10 MB'}</span></div>
+                    <div><b>{fileName || 'Choose a worksheet'}</b><span>{fileName ? 'Ready for secure extraction' : 'PDF, PNG, JPG or JPEG · maximum 10 MB'}</span></div>
                     <button type="button">Browse</button>
                   </div>
                   {uploadError && <p className="form-alert" role="alert">{uploadError}</p>}
                   <button className="primary-button full" type="button" onClick={extractQuestions} disabled={uploading}>
-                    {uploading ? 'Uploading securely…' : 'Upload & extract sample questions'} {!uploading && <ArrowIcon />}
+                    {uploading ? 'Uploading securely…' : 'Upload & extract questions'} {!uploading && <ArrowIcon />}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {stage === 'processing' && (
+              <div className="processing-layout" aria-live="polite">
+                <div className="processing-spinner" aria-hidden="true" />
+                <span className="step-label">STEP 02 · OCR</span>
+                <h3>{ocrJob?.status === 'failed' ? 'We could not read this worksheet' : 'Finding questions in your worksheet…'}</h3>
+                <p>{ocrJob?.status === 'failed' ? ocrJob.error_message : 'We try native PDF text first, then use image OCR when needed.'}</p>
+                {ocrJob?.status === 'failed' && <button className="primary-button" type="button" onClick={retryExtraction}>Try extraction again <ArrowIcon /></button>}
+                {uploadError && <p className="form-alert" role="alert">{uploadError}</p>}
               </div>
             )}
 
             {stage === 'questions' && (
               <div className="questions-layout">
                 <div className="questions-header">
-                  <div><span className="step-label">STEP 02</span><h3>Three questions found</h3><p>{fileName} · {level} · {subject}</p></div>
+                  <div><span className="step-label">STEP 02</span><h3>{questions.length} question{questions.length === 1 ? '' : 's'} found</h3><p>{fileName} · {level} · {subject} · Review before tutoring</p></div>
                   <div className="question-actions">
                     <button className="text-button" type="button" onClick={() => setStage('setup')}>← Change worksheet</button>
                     {worksheet && <button className="delete-link" type="button" onClick={removeCurrentWorksheet}>Delete stored copy</button>}
                   </div>
                 </div>
+                {uploadError && <p className="form-alert" role="alert">{uploadError}</p>}
                 <div className="question-list">
-                  {extractedQuestions.map((question) => (
-                    <button key={question.number} type="button" onClick={() => openTutor(question.number)}>
-                      <span className="question-number">0{question.number}</span>
-                      <span className="question-copy"><b>{question.title}</b><small>{question.topic} · {question.level}</small></span>
-                      <span className="round-arrow"><ArrowIcon /></span>
-                    </button>
+                  {questions.map((question) => (
+                    <article key={question.id} className="question-review-card">
+                      <span className="question-number">{String(question.question_number).padStart(2, '0')}</span>
+                      <label className="question-copy">
+                        <span className="sr-only">Review question {question.question_number}</span>
+                        <textarea value={questionDrafts[question.id] ?? ''} onChange={(event) => setQuestionDrafts((items) => ({ ...items, [question.id]: event.target.value }))} />
+                        <small>{question.page_number ? `Page ${question.page_number} · ` : ''}{question.confidence === null ? 'Native text' : `${Math.round(question.confidence * 100)}% OCR confidence`}</small>
+                      </label>
+                      <div className="review-actions">
+                        <button type="button" onClick={() => saveQuestion(question)} disabled={savingQuestion === question.id}>{savingQuestion === question.id ? 'Saving…' : 'Save edit'}</button>
+                        <button className="round-arrow" type="button" aria-label={`Open tutor for question ${question.question_number}`} onClick={() => openTutor(question.id)}><ArrowIcon /></button>
+                      </div>
+                    </article>
                   ))}
                 </div>
               </div>
@@ -328,9 +395,9 @@ function App() {
               <div className="tutor-layout">
                 <aside className="question-sidebar">
                   <button className="text-button" type="button" onClick={() => setStage('questions')}>← All questions</button>
-                  <span className="step-label">QUESTION 0{active.number}</span>
-                  <h3>{active.title}</h3>
-                  <div className="topic-row"><span>{active.topic}</span><span>{active.level}</span></div>
+                  <span className="step-label">QUESTION {String(active?.question_number ?? 1).padStart(2, '0')}</span>
+                  <h3>{active?.edited_text ?? active?.extracted_text}</h3>
+                  <div className="topic-row"><span>{subject}</span><span>{level}</span></div>
                   <div className="diagram-card">
                     <b>Force diagram</b>
                     <div className="vector-sketch"><i className="axis-x" /><i className="axis-y" /><i className="vector" /><span>10 N</span></div>
