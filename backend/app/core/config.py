@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
     session_cookie_name: str = "studymingle_session"
     session_ttl_hours: int = 168
+    turnstile_secret_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -29,6 +30,10 @@ class Settings(BaseSettings):
             for origin in self.frontend_origins.split(",")
             if origin.strip()
         ]
+
+    @property
+    def secure_cookies(self) -> bool:
+        return self.app_env == "production"
 
 
 @lru_cache
