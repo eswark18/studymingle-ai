@@ -9,10 +9,24 @@ This phase introduces a portable Python backend without changing the production 
 - SQLAlchemy async database access
 - Alembic schema migrations
 - Initial `users` and `sessions` tables
+- Registration, sign-in, sign-out, current-user, and account-deletion APIs
+- Argon2 password hashing and opaque server-side sessions
+- Optional Turnstile verification in development; required in production
 - Health and database-readiness endpoints
 - Test and lint configuration
 
-OCR, AI tutoring, authentication delivery, Turnstile, and R2 uploads are intentionally deferred.
+OCR, AI tutoring, email verification, password recovery, and R2 uploads are intentionally deferred.
+
+## Authentication endpoints
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `DELETE /api/v1/auth/account`
+
+Authentication uses an HTTP-only session cookie. Only a SHA-256 digest of the random session
+token is stored. Account deletion anonymizes personal profile fields and revokes active sessions.
 
 ## Local services
 
