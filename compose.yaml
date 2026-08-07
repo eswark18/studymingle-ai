@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://studymingle:studymingle@db:5432/studymingle
+      FRONTEND_ORIGINS: http://localhost:5173,https://study.thoughtmingle.com
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: studymingle
+      POSTGRES_USER: studymingle
+      POSTGRES_PASSWORD: studymingle
+    ports:
+      - "5432:5432"
+    volumes:
+      - studymingle_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studymingle -d studymingle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  studymingle_postgres:
