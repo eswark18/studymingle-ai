@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.api.auth import router as auth_router
 from app.core.config import settings
 from app.core.database import engine
 
@@ -20,6 +21,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Turnstile-Token"],
 )
+
+app.include_router(auth_router, prefix=settings.api_prefix)
 
 
 @app.get("/health", tags=["system"])
