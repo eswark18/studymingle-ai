@@ -15,12 +15,24 @@ import {
   updateExtractedQuestion,
   uploadWorksheet,
 } from './auth'
-import type { AuthMode, AuthUser, ExtractedQuestion, OcrJob, TutorSession, Worksheet } from './auth'
+import type {
+  AuthMode,
+  AuthUser,
+  ExtractedQuestion,
+  OcrJob,
+  TutorAttempt,
+  TutorHint,
+  TutorSession,
+  Worksheet,
+} from './auth'
 import AccountModal from './components/AccountModal'
 import AuthModal from './components/AuthModal'
 
 type Track = 'school' | 'engineering'
 type Stage = 'setup' | 'processing' | 'questions' | 'tutor'
+type TutorConversationEvent =
+  | { kind: 'hint'; createdAt: string; value: TutorHint }
+  | { kind: 'attempt'; createdAt: string; value: TutorAttempt }
 
 const schoolSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology']
 const engineeringSubjects = [
@@ -117,6 +129,22 @@ function App() {
     () => questions.find((question) => question.id === activeQuestion) ?? questions[0],
     [activeQuestion, questions],
   )
+
+  const tutorConversation = useMemo<TutorConversationEvent[]>(() => {
+    if (!tutorSession) return []
+    return [
+      ...tutorSession.hints.map((hint) => ({
+        kind: 'hint' as const,
+        createdAt: hint.created_at,
+        value: hint,
+      })),
+      ...tutorSession.attempts.map((attempt) => ({
+        kind: 'attempt' as const,
+        createdAt: attempt.created_at,
+        value: attempt,
+      })),
+    ].sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+  }, [tutorSession])
 
   function switchTrack(nextTrack: Track) {
     setTrack(nextTrack)
@@ -452,18 +480,25 @@ function App() {
                   <div className="tutor-heading"><div className="avatar"><SparkIcon /></div><div><b>Study coach</b><span>Guiding, not completing</span></div><span className="online">Online</span></div>
                   <div className="conversation" aria-live="polite">
                     {tutorLoading && !tutorSession && <div className="coach-message"><b>Preparing your first step…</b><p>The local open-source tutor is reading the reviewed question.</p></div>}
-                    {tutorSession?.hints.map((hint) => (
-                      <div className={hint.sequence_number === 1 ? 'coach-message' : 'hint-message'} key={hint.id}>
-                        {hint.sequence_number === 1 ? <b>Let’s start with what you know.</b> : <span>HINT {String(hint.sequence_number).padStart(2, '0')}</span>}
-                        <p>{hint.hint_text}</p>
-                      </div>
-                    ))}
-                    {tutorSession?.attempts.map((attempt) => (
-                      <div className={attempt.is_correct ? 'success-message' : 'coach-message'} key={attempt.id}>
-                        <b>{attempt.is_correct ? 'Strong attempt.' : 'Keep working through it.'}</b>
-                        <p>{attempt.feedback_text}</p>
-                      </div>
-                    ))}
+                    {tutorConversation.map((event) => {
+                      if (event.kind === 'hint') {
+                        const hint = event.value
+                        return (
+                          <div className={hint.sequence_number === 1 ? 'coach-message' : 'hint-message'} key={`hint-${hint.id}`}>
+                            {hint.sequence_number === 1 ? <b>Let’s start with what you know.</b> : <span>HINT {String(hint.sequence_number).padStart(2, '0')}</span>}
+                            <p>{hint.hint_text}</p>
+                          </div>
+                        )
+                      }
+                      const attempt = event.value
+                      return (
+                        <div className={attempt.is_correct ? 'success-message' : 'coach-message'} key={`attempt-${attempt.id}`}>
+                          <b>{attempt.is_correct ? 'Strong attempt.' : 'Feedback on your attempt.'}</b>
+                          <blockquote className="student-attempt">You wrote: “{attempt.attempt_text}”</blockquote>
+                          <p>{attempt.feedback_text}</p>
+                        </div>
+                      )
+                    })}
                     {tutorError && <p className="form-alert" role="alert">{tutorError}</p>}
                   </div>
                   <div className="answer-box">
