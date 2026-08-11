@@ -153,6 +153,7 @@ select { width: 100%; padding: 14px; border: 1px solid #d3dddc; border-radius: 9
 .coach-message { background: #fff; border: 1px solid #dbe5e2; }
 .coach-message b, .success-message b { color: var(--ink); }
 .coach-message p, .hint-message p, .success-message p { margin: 5px 0 0; color: #647680; }
+.student-attempt { margin: 9px 0 2px; padding: 8px 10px; border-left: 2px solid #9fc9c5; background: #f4f8f7; color: #38545d; font-style: normal; }
 .hint-message { margin-left: 25px; border-left: 3px solid #58bdc2; background: #edf9f8; }
 .hint-message span { color: #3c9298; font-size: 9px; font-weight: 850; letter-spacing: .1em; }
 .success-message { border: 1px solid #bddc82; background: #f3fae5; }
