@@ -86,7 +86,7 @@ def _repeats_prior_hint(message: str, prior_hints: tuple[str, ...]) -> bool:
         similarity = SequenceMatcher(None, candidate, previous).ratio()
         union = candidate_words | previous_words
         overlap = len(candidate_words & previous_words) / len(union) if union else 1.0
-        if candidate == previous or similarity >= 0.72 or overlap >= 0.72:
+        if candidate == previous or similarity >= 0.66 or overlap >= 0.66:
             return True
     return False
 
