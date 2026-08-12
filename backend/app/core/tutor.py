@@ -65,9 +65,11 @@ step and ask one targeted question. Do not restart the lesson or repeat an earli
 complete worked explanation using the reviewed question values. Format the message with each
 section on its own line exactly as "Step 1: ...", "Step 2: ...", and "Step 3: ...", adding more
 numbered steps only when the problem requires them. Each step must explain one clear action and
-show its formula or calculation. End on separate lines with "Final answer: ..." including units
-and "Quick check: ..." containing one brief understanding check. Do not write a long unstructured
-paragraph. Set hint_type to feedback, is_correct to null, misconception to null, and next_action
+show its formula or calculation. Use only readable plain text and Unicode math symbols. For
+example: "Fx = 10 × cos(30°) = 8.66 N". Never use LaTeX, dollar-sign math delimiters, backslash
+commands, or notation such as \\text, \\frac, \\circ, or F_x. End on separate lines with
+"Final answer: ..." including units and "Quick check: ..." containing one brief understanding
+check. Do not write a long unstructured paragraph. Set hint_type to feedback, is_correct to null, misconception to null, and next_action
 to complete.""",
     }.get(purpose, "Give one new, targeted learning step.")
     return f"""You are StudyMingle, a patient learning coach.
@@ -110,7 +112,8 @@ def _has_complete_solution_structure(message: str) -> bool:
     )
     has_steps = all(re.search(pattern, normalised) for pattern in step_patterns)
     has_final_answer = bool(re.search(r"final\s+answer\s*[:.-]", normalised))
-    return len(message.strip()) >= 250 and has_steps and has_final_answer
+    has_latex = "$" in message or bool(re.search(r"\\\\[a-zA-Z]+", message))
+    return len(message.strip()) >= 250 and has_steps and has_final_answer and not has_latex
 
 
 def _normalise_for_comparison(value: str) -> str:
@@ -175,7 +178,9 @@ class OllamaTutorProvider:
                             "The worked solution was incomplete. Return the entire solution in "
                             "one detailed response with Step 1, Step 2, Step 3, and Final answer. "
                             "Explain why each formula applies, define its terms, substitute the "
-                            "question values, show every calculation, and include units."
+                            "question values, show every calculation, and include units. Use "
+                            "plain text such as Fx = 10 × cos(30°) = 8.66 N. Do not use LaTeX, "
+                            "dollar signs, backslash commands, or underscore variable names."
                         )
                     if correction is None:
                         return generation
