@@ -9,6 +9,7 @@ from app.core.tutor import (
     TutorProviderError,
     _repeats_prior_hint,
     _system_prompt,
+    requests_complete_solution,
 )
 
 
@@ -38,6 +39,33 @@ def test_attempt_prompt_requires_feedback_on_exact_attempt() -> None:
     prompt = _system_prompt(attempt_context, "check_attempt")
     assert "Evaluate the learner's Latest attempt directly" in prompt
     assert "Latest attempt: 10 N" in prompt
+
+
+def test_solution_request_detection_handles_give_up_and_direct_requests() -> None:
+    solution_requests = (
+        "solve it",
+        "Please solve this problem",
+        "show me the answer",
+        "give me the solution",
+        "explain the solution",
+        "I give up",
+        "I don't know",
+    )
+    for request in solution_requests:
+        assert requests_complete_solution(request)
+
+    assert not requests_complete_solution("My solution is 10 N.")
+    assert not requests_complete_solution("I don't know whether to use sine or cosine.")
+
+
+def test_solution_prompt_requires_a_complete_worked_explanation() -> None:
+    solution_context = TutorContext(
+        **{**context().__dict__, "latest_attempt": "solve it"},
+    )
+    prompt = _system_prompt(solution_context, "explain_solution")
+    assert "complete, step-by-step worked explanation" in prompt
+    assert "calculate the final answer with units" in prompt
+    assert "next_action to complete" in prompt
 
 
 def test_repeat_detection_catches_duplicate_and_paraphrased_hint() -> None:
