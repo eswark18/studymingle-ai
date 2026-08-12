@@ -100,6 +100,13 @@ Latest attempt: {context.latest_attempt or "None"}
 """
 
 
+def _has_complete_solution_structure(message: str) -> bool:
+    """Reject partial worked solutions before they are stored as completed sessions."""
+    required_sections = ("step 1:", "step 2:", "step 3:", "final answer:", "quick check:")
+    normalised = message.lower()
+    return all(section in normalised for section in required_sections)
+
+
 def _normalise_for_comparison(value: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
 
@@ -131,7 +138,10 @@ class OllamaTutorProvider:
             "stream": False,
             "think": False,
             "format": TutorGeneration.model_json_schema(),
-            "options": {"temperature": 0.2, "num_predict": 450},
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 900 if purpose == "explain_solution" else 450,
+            },
         }
         try:
             async with httpx.AsyncClient(
@@ -144,22 +154,28 @@ class OllamaTutorProvider:
                     response.raise_for_status()
                     content = response.json()["message"]["content"]
                     generation = TutorGeneration.model_validate_json(content)
-                    if purpose != "next_hint" or not _repeats_prior_hint(
+                    correction = None
+                    if purpose == "next_hint" and _repeats_prior_hint(
                         generation.message, context.prior_hints
                     ):
+                        correction = (
+                            "That response repeated an earlier hint. Return a materially "
+                            "new next step at the required progression level."
+                        )
+                    elif purpose == "explain_solution" and not _has_complete_solution_structure(
+                        generation.message
+                    ):
+                        correction = (
+                            "The worked solution was incomplete. Return the entire solution in "
+                            "one response with Step 1, Step 2, Step 3, Final answer, and Quick "
+                            "check. Explain the reason for each formula and show every calculation."
+                        )
+                    if correction is None:
                         return generation
                     if attempt_number == 0:
-                        payload["messages"].append(
-                            {
-                                "role": "user",
-                                "content": (
-                                    "That response repeated an earlier hint. Return a materially "
-                                    "new next step at the required progression level."
-                                ),
-                            }
-                        )
+                        payload["messages"].append({"role": "user", "content": correction})
             raise TutorProviderError(
-                "The tutor repeated an earlier hint. Please try requesting guidance again."
+                "The tutor could not produce a complete response. Please try again."
             )
         except (httpx.HTTPError, KeyError, TypeError, ValueError, ValidationError) as error:
             raise TutorProviderError("The open-source tutor is temporarily unavailable.") from error
