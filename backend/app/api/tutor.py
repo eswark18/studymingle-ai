@@ -7,7 +7,12 @@ from sqlalchemy.orm import selectinload
 from app.api.dependencies import CurrentUser, DatabaseSession
 from app.core.config import settings
 from app.core.rate_limit import tutor_rate_limiter
-from app.core.tutor import TutorContext, TutorProviderError, get_tutor_provider
+from app.core.tutor import (
+    TutorContext,
+    TutorProviderError,
+    get_tutor_provider,
+    requests_complete_solution,
+)
 from app.models import ExtractedQuestion, OcrJob, TutorAttempt, TutorHint, TutorSession, Worksheet
 from app.schemas.tutor import (
     TutorAttemptRequest,
@@ -191,7 +196,8 @@ async def submit_tutor_attempt(
             status_code=status.HTTP_409_CONFLICT, detail="This session is complete."
         )
     attempt_text = " ".join(payload.attempt_text.split())
-    guidance = await _generate(_context(session, latest_attempt=attempt_text), "check_attempt")
+    purpose = "explain_solution" if requests_complete_solution(attempt_text) else "check_attempt"
+    guidance = await _generate(_context(session, latest_attempt=attempt_text), purpose)
     session.attempts.append(
         TutorAttempt(
             attempt_text=attempt_text,
@@ -200,7 +206,7 @@ async def submit_tutor_attempt(
             is_correct=guidance.is_correct,
         )
     )
-    if guidance.is_correct is True or guidance.next_action == "complete":
+    if purpose == "explain_solution" or guidance.is_correct is True or guidance.next_action == "complete":
         session.status = "completed"
     await database.commit()
     return _response(await _owned_session(session.id, user, database))
