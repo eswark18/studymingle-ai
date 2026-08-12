@@ -7,6 +7,7 @@ from app.core.tutor import (
     OllamaTutorProvider,
     TutorContext,
     TutorProviderError,
+    _has_complete_solution_structure,
     _repeats_prior_hint,
     _system_prompt,
     requests_complete_solution,
@@ -131,6 +132,56 @@ async def test_ollama_provider_retries_a_repeated_next_hint() -> None:
     )
     assert calls == 2
     assert result.message.startswith("Which ratio")
+
+
+def test_complete_solution_structure_requires_all_sections() -> None:
+    complete = (
+        "Step 1: Identify the known values.\n"
+        "Step 2: Choose the formula and explain why.\n"
+        "Step 3: Substitute and calculate.\n"
+        "Final answer: 10 N.\n"
+        "Quick check: Does the result have the correct units?"
+    )
+    assert _has_complete_solution_structure(complete)
+    assert not _has_complete_solution_structure("Step 1: Identify the known values.")
+
+
+@pytest.mark.asyncio
+async def test_ollama_provider_retries_an_incomplete_worked_solution() -> None:
+    calls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        payload = json.loads(request.content)
+        assert payload["options"]["num_predict"] == 900
+        if calls == 2:
+            assert "worked solution was incomplete" in payload["messages"][1]["content"]
+        message = (
+            "Step 1: Identify the values."
+            if calls == 1
+            else (
+                "Step 1: Identify the known values.\n"
+                "Step 2: Select and explain the formula.\n"
+                "Step 3: Substitute the values and calculate.\n"
+                "Final answer: The resultant is 10 N.\n"
+                "Quick check: Why are the units newtons?"
+            )
+        )
+        content = {
+            "message": message,
+            "hint_type": "feedback",
+            "is_correct": None,
+            "misconception": None,
+            "next_action": "complete",
+        }
+        return httpx.Response(200, json={"message": {"content": json.dumps(content)}})
+
+    result = await OllamaTutorProvider(transport=httpx.MockTransport(handler)).generate(
+        context(), "explain_solution"
+    )
+    assert calls == 2
+    assert "Final answer:" in result.message
 
 
 @pytest.mark.asyncio
