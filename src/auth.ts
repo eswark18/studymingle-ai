@@ -41,6 +41,38 @@ export type OcrJob = {
   questions: ExtractedQuestion[]
 }
 
+export type TutorHint = {
+  id: string
+  sequence_number: number
+  hint_type: string
+  hint_text: string
+  created_at: string
+}
+
+export type TutorAttempt = {
+  id: string
+  attempt_text: string
+  feedback_text: string
+  misconception: string | null
+  is_correct: boolean | null
+  created_at: string
+}
+
+export type TutorSession = {
+  id: string
+  question_id: string
+  source_text: string
+  learning_text: string
+  education_track: string
+  grade_or_year: string
+  subject: string
+  status: 'active' | 'completed'
+  hints: TutorHint[]
+  attempts: TutorAttempt[]
+  can_request_hint: boolean
+  created_at: string
+}
+
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 export class ApiError extends Error {
@@ -114,5 +146,26 @@ export function updateExtractedQuestion(questionId: string, editedText: string) 
   return apiRequest<ExtractedQuestion>(`/questions/${questionId}`, {
     method: 'PATCH',
     body: JSON.stringify({ text: editedText }),
+  })
+}
+
+export function startTutorSession(
+  questionId: string,
+  context: { education_track: string; grade_or_year: string; subject: string },
+) {
+  return apiRequest<TutorSession>(`/questions/${questionId}/tutor-sessions`, {
+    method: 'POST',
+    body: JSON.stringify(context),
+  })
+}
+
+export function requestTutorHint(sessionId: string) {
+  return apiRequest<TutorSession>(`/tutor-sessions/${sessionId}/hints`, { method: 'POST' })
+}
+
+export function submitTutorAttempt(sessionId: string, attemptText: string) {
+  return apiRequest<TutorSession>(`/tutor-sessions/${sessionId}/attempts`, {
+    method: 'POST',
+    body: JSON.stringify({ attempt_text: attemptText }),
   })
 }

@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.api.auth import router as auth_router
 from app.api.ocr import router as ocr_router
+from app.api.tutor import router as tutor_router
 from app.api.worksheets import router as worksheets_router
 from app.core.config import settings
 from app.core.database import engine
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(ocr_router, prefix=settings.api_prefix)
+app.include_router(tutor_router, prefix=settings.api_prefix)
 app.include_router(worksheets_router, prefix=settings.api_prefix)
 
 
