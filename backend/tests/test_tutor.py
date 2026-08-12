@@ -63,8 +63,11 @@ def test_solution_prompt_requires_a_complete_worked_explanation() -> None:
         **{**context().__dict__, "latest_attempt": "solve it"},
     )
     prompt = _system_prompt(solution_context, "explain_solution")
-    assert "complete, step-by-step worked explanation" in prompt
-    assert "calculate the final answer with units" in prompt
+    assert '"Step 1: ..."' in prompt
+    assert '"Step 2: ..."' in prompt
+    assert '"Step 3: ..."' in prompt
+    assert '"Final answer: ..."' in prompt
+    assert "Do not write a long unstructured paragraph" in prompt
     assert "next_action to complete" in prompt
 
 

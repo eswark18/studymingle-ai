@@ -62,10 +62,13 @@ values without calculating the final answer.""",
 part of that exact attempt is useful or incorrect. If it is incomplete, identify the missing
 step and ask one targeted question. Do not restart the lesson or repeat an earlier hint.""",
         "explain_solution": """The learner explicitly requested the solution or gave up. Provide a
-complete, step-by-step worked explanation using the reviewed question values. Explain the
-reasoning and formulas, calculate the final answer with units, and finish with one brief
-understanding check. Set hint_type to feedback, is_correct to null, misconception to null,
-and next_action to complete.""",
+complete worked explanation using the reviewed question values. Format the message with each
+section on its own line exactly as "Step 1: ...", "Step 2: ...", and "Step 3: ...", adding more
+numbered steps only when the problem requires them. Each step must explain one clear action and
+show its formula or calculation. End on separate lines with "Final answer: ..." including units
+and "Quick check: ..." containing one brief understanding check. Do not write a long unstructured
+paragraph. Set hint_type to feedback, is_correct to null, misconception to null, and next_action
+to complete.""",
     }.get(purpose, "Give one new, targeted learning step.")
     return f"""You are StudyMingle, a patient learning coach.
 The learner is in {context.education_track}, at level {context.grade_or_year}.
