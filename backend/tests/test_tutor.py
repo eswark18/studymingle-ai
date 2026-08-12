@@ -69,6 +69,8 @@ def test_solution_prompt_requires_a_complete_worked_explanation() -> None:
     assert '"Step 3: ..."' in prompt
     assert '"Final answer: ..."' in prompt
     assert "Do not write a long unstructured paragraph" in prompt
+    assert "Never use LaTeX" in prompt
+    assert "Fx = 10 × cos(30°) = 8.66 N" in prompt
     assert "next_action to complete" in prompt
 
 
@@ -150,6 +152,13 @@ def test_complete_solution_structure_requires_all_sections() -> None:
         "**Final answer:** The horizontal component is 8.66 N and vertical component is 5 N."
     )
     assert _has_complete_solution_structure(markdown_variant)
+    latex_solution = (
+        "Step 1: Identify the magnitude and angle in the problem statement.\n"
+        "Step 2: Calculate the horizontal component using $ F_x = F \\cos \\theta $.\n"
+        "Step 3: Calculate the vertical component using $ F_y = F \\sin \\theta $.\n"
+        "Final answer: $ F_x = 8.66 \\text{N} $ and $ F_y = 5 \\text{N} $."
+    )
+    assert not _has_complete_solution_structure(latex_solution)
     assert not _has_complete_solution_structure("Step 1: Identify the known values.")
 
 
