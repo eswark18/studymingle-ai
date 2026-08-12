@@ -44,6 +44,8 @@ _SOLUTION_REQUEST_PATTERNS = (
 def requests_complete_solution(value: str) -> bool:
     """Return whether the learner explicitly gave up or requested the worked solution."""
     normalised = " ".join(value.lower().split())
+    if re.search(r"\bi\s+(?:do\s+not|don't|dont)\s+know\s+(?:whether|how|which|what|where|why)\b", normalised):
+        return False
     return any(re.search(pattern, normalised) for pattern in _SOLUTION_REQUEST_PATTERNS)
 
 
