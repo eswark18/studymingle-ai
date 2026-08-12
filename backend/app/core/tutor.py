@@ -31,6 +31,24 @@ class TutorProvider(Protocol):
     async def generate(self, context: TutorContext, purpose: str) -> TutorGeneration: ...
 
 
+_SOLUTION_REQUEST_PATTERNS = (
+    r"\b(?:please\s+)?solve\s+(?:it|this|the\s+(?:problem|question))\b",
+    r"\b(?:show|give|tell)\s+me\s+(?:the\s+)?(?:answer|solution)\b",
+    r"\b(?:explain|provide)\s+(?:the\s+)?(?:answer|solution)\b",
+    r"\bi\s+(?:give\s+up|giveup|quit)\b",
+    r"\bi\s+(?:do\s+not|don't|dont)\s+know\b",
+    r"\b(?:just\s+)?(?:give|show)\s+(?:the\s+)?(?:answer|solution)\b",
+)
+
+
+def requests_complete_solution(value: str) -> bool:
+    """Return whether the learner explicitly gave up or requested the worked solution."""
+    normalised = " ".join(value.lower().split())
+    if re.search(r"\bi\s+(?:do\s+not|don't|dont)\s+know\s+(?:whether|how|which|what|where|why)\b", normalised):
+        return False
+    return any(re.search(pattern, normalised) for pattern in _SOLUTION_REQUEST_PATTERNS)
+
+
 def _system_prompt(context: TutorContext, purpose: str) -> str:
     progression = len(context.prior_hints) + 1
     purpose_instructions = {
@@ -43,6 +61,11 @@ values without calculating the final answer.""",
         "check_attempt": """Evaluate the learner's Latest attempt directly. Start by saying what
 part of that exact attempt is useful or incorrect. If it is incomplete, identify the missing
 step and ask one targeted question. Do not restart the lesson or repeat an earlier hint.""",
+        "explain_solution": """The learner explicitly requested the solution or gave up. Provide a
+complete, step-by-step worked explanation using the reviewed question values. Explain the
+reasoning and formulas, calculate the final answer with units, and finish with one brief
+understanding check. Set hint_type to feedback, is_correct to null, misconception to null,
+and next_action to complete.""",
     }.get(purpose, "Give one new, targeted learning step.")
     return f"""You are StudyMingle, a patient learning coach.
 The learner is in {context.education_track}, at level {context.grade_or_year}.
@@ -52,7 +75,8 @@ Adapt vocabulary and explanation depth to that learner. Be concise and encouragi
 Safety and teaching rules:
 - Give exactly one useful step at a time.
 - Never greet the learner more than once and never restart the lesson.
-- Never provide a complete solution or final answer before a meaningful learner attempt.
+- Never provide a complete solution or final answer before a meaningful learner attempt, unless
+  Request purpose is explain_solution because the learner explicitly asked for it or gave up.
 - For hint {progression}, progress from a guiding question, to a concept, to a method.
 - Every new hint must be materially different from all prior hints.
 - Do not skip ahead.
