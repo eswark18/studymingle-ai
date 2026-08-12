@@ -103,6 +103,25 @@ Open `http://localhost:5173` in a browser. Register a local account, upload a PD
 
 Turnstile is not required in the default development environment.
 
+## Try the included sample worksheet
+
+Download [StudyMingle Sample Worksheet](docs/samples/studymingle-sample-worksheet.pdf) and upload it from the learning workspace. The one-page PDF contains five clean Engineering Mechanics questions:
+
+1. Resolve a 10 N force acting 30 degrees above the horizontal into horizontal and vertical components.
+2. Find the magnitude and direction of the resultant of perpendicular 6 N and 8 N forces.
+3. Calculate the weight and normal reaction of a 20 kg box using `g = 9.81 m/s^2`.
+4. Calculate acceleration and distance when velocity changes from 5 m/s to 25 m/s in 10 seconds.
+5. Determine the two support reactions for a simply supported beam with a central 12 kN load.
+
+Recommended test flow:
+
+1. Create a local account and upload the sample PDF.
+2. Wait for OCR, confirm that five questions were extracted, and edit any OCR text if necessary.
+3. Select Question 1 and start the Study Coach.
+4. Submit an attempt such as `Fx = 8 N and Fy = 6 N` to test corrective feedback.
+5. Reveal progressive hints, or enter `solve it` to test the complete numbered explanation.
+6. Confirm that the final response uses readable plain-text mathematics, including `Fx = 10 × cos(30°) = 8.66 N` and `Fy = 10 × sin(30°) = 5 N`.
+
 ### 5. View logs or stop the application
 
 Follow backend logs:
