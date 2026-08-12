@@ -16,6 +16,7 @@ services:
       TUTOR_PROVIDER: ollama
       TUTOR_MODEL: qwen3:4b
       TUTOR_BASE_URL: http://ollama:11434
+      TUTOR_TIMEOUT_SECONDS: 120
     ports:
       - "8000:8000"
     depends_on:
