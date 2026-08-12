@@ -206,7 +206,11 @@ async def submit_tutor_attempt(
             is_correct=guidance.is_correct,
         )
     )
-    if purpose == "explain_solution" or guidance.is_correct is True or guidance.next_action == "complete":
+    if (
+        purpose == "explain_solution"
+        or guidance.is_correct is True
+        or guidance.next_action == "complete"
+    ):
         session.status = "completed"
     await database.commit()
     return _response(await _owned_session(session.id, user, database))
