@@ -102,9 +102,15 @@ Latest attempt: {context.latest_attempt or "None"}
 
 def _has_complete_solution_structure(message: str) -> bool:
     """Reject partial worked solutions before they are stored as completed sessions."""
-    required_sections = ("step 1:", "step 2:", "step 3:", "final answer:", "quick check:")
     normalised = message.lower()
-    return all(section in normalised for section in required_sections)
+    step_patterns = (
+        r"step\s*1\s*[:.)-]",
+        r"step\s*2\s*[:.)-]",
+        r"step\s*3\s*[:.)-]",
+    )
+    has_steps = all(re.search(pattern, normalised) for pattern in step_patterns)
+    has_final_answer = bool(re.search(r"final\s+answer\s*[:.-]", normalised))
+    return len(message.strip()) >= 250 and has_steps and has_final_answer
 
 
 def _normalise_for_comparison(value: str) -> str:
@@ -147,7 +153,7 @@ class OllamaTutorProvider:
             async with httpx.AsyncClient(
                 timeout=settings.tutor_timeout_seconds, transport=self._transport
             ) as client:
-                for attempt_number in range(2):
+                for attempt_number in range(3):
                     response = await client.post(
                         f"{settings.tutor_base_url.rstrip('/')}/api/chat", json=payload
                     )
@@ -167,12 +173,13 @@ class OllamaTutorProvider:
                     ):
                         correction = (
                             "The worked solution was incomplete. Return the entire solution in "
-                            "one response with Step 1, Step 2, Step 3, Final answer, and Quick "
-                            "check. Explain the reason for each formula and show every calculation."
+                            "one detailed response with Step 1, Step 2, Step 3, and Final answer. "
+                            "Explain why each formula applies, define its terms, substitute the "
+                            "question values, show every calculation, and include units."
                         )
                     if correction is None:
                         return generation
-                    if attempt_number == 0:
+                    if attempt_number < 2:
                         payload["messages"].append({"role": "user", "content": correction})
             raise TutorProviderError(
                 "The tutor could not produce a complete response. Please try again."

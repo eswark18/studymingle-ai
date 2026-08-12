@@ -140,9 +140,16 @@ def test_complete_solution_structure_requires_all_sections() -> None:
         "Step 2: Choose the formula and explain why.\n"
         "Step 3: Substitute and calculate.\n"
         "Final answer: 10 N.\n"
-        "Quick check: Does the result have the correct units?"
+        "This result has the expected units and magnitude."
     )
     assert _has_complete_solution_structure(complete)
+    markdown_variant = (
+        "**Step 1.** Identify all known quantities and draw the force direction clearly.\n"
+        "**Step 2.** Choose the component formulas and explain why cosine applies horizontally.\n"
+        "**Step 3.** Substitute every value, calculate both components, and retain their units.\n"
+        "**Final answer:** The horizontal component is 8.66 N and vertical component is 5 N."
+    )
+    assert _has_complete_solution_structure(markdown_variant)
     assert not _has_complete_solution_structure("Step 1: Identify the known values.")
 
 
