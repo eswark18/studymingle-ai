@@ -16,7 +16,7 @@ class TutorAttemptRequest(BaseModel):
 
 
 class TutorGeneration(BaseModel):
-    message: str = Field(min_length=3, max_length=1500)
+    message: str = Field(min_length=3, max_length=4000)
     hint_type: Literal["question", "concept", "method", "feedback"]
     is_correct: bool | None = None
     misconception: str | None = Field(default=None, max_length=500)
