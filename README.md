@@ -198,3 +198,48 @@ docker compose exec api pytest -q
 - Cloudflare Pages frontend
 
 StudyMingle is a ThoughtMingle learning prototype.
+
+## Branch and demonstration strategy
+
+- `main` is the canonical open-source development branch. Developers clone this branch and run the complete React, FastAPI, PostgreSQL, MinIO, Ollama, and OCR stack locally.
+- `production` is the Cloudflare Pages deployment branch. It remains a complete repository snapshot so changes from `main` can be merged safely, but Cloudflare builds only the Vite frontend and Pages Functions.
+- Local development does not use the production availability gate. Setting `VITE_DEPLOYMENT_MODE=production` enables the gate for the public site.
+
+The public frontend checks `VITE_API_BASE_URL/health` when it loads. If the locally hosted API and Cloudflare Tunnel are available, the complete workspace opens. If the API is offline or does not respond within eight seconds, visitors see a maintenance page and can request a scheduled private demonstration.
+
+### Cloudflare Pages production settings
+
+Configure the Pages project to deploy the `production` branch with:
+
+```text
+Build command: npm run build
+Build output directory: dist
+Root directory: /
+```
+
+Copy the values described in `.env.production.example` into the Cloudflare Pages production environment. Store `TURNSTILE_SECRET_KEY` and `RESEND_API_KEY` as encrypted secrets. `VITE_API_BASE_URL` should point to the named Cloudflare Tunnel hostname connected to the MacBook API, such as `https://api.study.thoughtmingle.com`.
+
+The demo request form is a Cloudflare Pages Function and therefore remains available while the MacBook is offline. It verifies Turnstile and sends the request through Resend. Verify `thoughtmingle.com` in Resend before using `demo@thoughtmingle.com` as the sender.
+
+### Start a scheduled demonstration
+
+1. Connect the MacBook to power and prevent it from sleeping.
+2. Start the complete local stack:
+
+   ```bash
+   docker compose up --build -d
+   docker compose exec ollama ollama list
+   ```
+
+3. Confirm the backend is ready:
+
+   ```bash
+   curl http://localhost:8000/health
+   curl http://localhost:8000/ready
+   ```
+
+4. Start the named Cloudflare Tunnel that maps the public API hostname to `http://localhost:8000`.
+5. Open `https://study.thoughtmingle.com` and confirm that the full workspace appears.
+6. At the end of the session, stop the tunnel and run `docker compose down`. Cloudflare Pages will automatically return visitors to the maintenance and demo-request experience.
+
+For the first release, scheduled access is coordinated by email. Temporary access codes, automatic expiry, session capacity, and payment-provider integration remain planned production controls; they are not represented as completed security features.

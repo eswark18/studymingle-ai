@@ -37,9 +37,10 @@ function loadTurnstile(): Promise<TurnstileApi> {
 type Props = {
   onToken: (token: string) => void
   onError: (message: string) => void
+  action?: string
 }
 
-export default function TurnstileWidget({ onToken, onError }: Props) {
+export default function TurnstileWidget({ onToken, onError, action = 'authentication' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | undefined>(undefined)
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
@@ -53,7 +54,7 @@ export default function TurnstileWidget({ onToken, onError }: Props) {
         if (cancelled || !containerRef.current) return
         widgetIdRef.current = turnstile.render(containerRef.current, {
           sitekey: siteKey,
-          action: 'authentication',
+          action,
           theme: 'light',
           size: 'flexible',
           callback: onToken,
@@ -69,7 +70,7 @@ export default function TurnstileWidget({ onToken, onError }: Props) {
         window.turnstile.remove(widgetIdRef.current)
       }
     }
-  }, [onError, onToken, siteKey])
+  }, [action, onError, onToken, siteKey])
 
   if (!siteKey) return null
   return <div className="turnstile-slot" ref={containerRef} />
